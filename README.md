@@ -19,7 +19,7 @@ one machine instead of a fleet).
 | Milestone | Scope | Status |
 |-----------|-------|--------|
 | M0 | Repo foundation: quality gate, docs skeleton, agent tooling | ✅ done |
-| M1 | Walking skeleton: run API, fair scheduler, worker pool, state machine | planned |
+| M1 | Walking skeleton: run API, fair scheduler, worker pool, state machine | ✅ done |
 | M2 | Durability: Postgres event log, leases, fencing, checkpoint resume | planned |
 | M3 | Agent SDK: deterministic orchestration, event-sourced replay | planned |
 | M4 | Sandboxes: one Docker container per run, warm pools, egress lockdown | planned |
