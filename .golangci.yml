@@ -1,0 +1,2 @@
+# Minimal config; linters get tightened as the codebase grows.
+version: "2"
