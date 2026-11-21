@@ -2,7 +2,7 @@
 // Bumped manually at each milestone close-out.
 package version
 
-const current = "0.0.1-m0"
+const current = "0.1.0-m1"
 
 // String returns the platform version.
 func String() string {
