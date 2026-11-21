@@ -7,18 +7,23 @@
 ## Done
 
 - Design doc approved: `docs/superpowers/specs/2026-11-21-agent-execution-platform-design.md`
-- M0 plan: `docs/superpowers/plans/2026-11-21-m0-repo-foundation.md`
-- Go module + `internal/version` + quality gate (`scripts/check.ps1`)
-- Docs skeleton (this file, ARCHITECTURE, REFERENCE, ADRs 0001–0003)
+- **M0 — repo foundation** ([doc](milestones/M0-foundation.md),
+  [demo](../demos/m0.md)): Go module, quality gate (`scripts/check.ps1`),
+  docs skeleton, ADRs 0001–0003, CLAUDE.md, codegraph tooling
 
 ## In Progress
 
-- M0 — remaining: CLAUDE.md, codegraph tooling, milestone doc + demo
+- Nothing — between milestones.
 
 ## Next Up
 
-- M1 — walking skeleton: run API, in-memory per-team queues with weighted
-  fair scheduling, worker pool, run state machine (design doc § Milestones)
+- **M1 — walking skeleton**: `POST /runs` / `GET /runs/{id}` /
+  `POST /runs/{id}/cancel`, in-memory per-team queues with weighted fair
+  scheduling, in-process worker pool running a built-in fake agent, run
+  state machine with validated transitions, idempotency keys on run
+  creation, built-in agent registry (`{agent, version}` in the request).
+  Spec: design doc § Milestones → M1. Start with a brainstorm-refresher,
+  then a plan via superpowers:writing-plans.
 
 ## How to Resume a Session
 
