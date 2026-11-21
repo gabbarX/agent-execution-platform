@@ -33,6 +33,13 @@ one machine instead of a fleet).
 pwsh -File scripts/check.ps1   # fmt, vet, lint, test, build — the quality gate
 ```
 
+## Tooling
+
+Agentic-coding support: [codegraph](https://github.com/colbymchenry/codegraph)
+builds a semantic code graph of this repo (MCP server registered with
+Claude Code globally; index in the git-ignored `.codegraph/`, auto-syncs on
+file changes). Rebuild any time with `codegraph init`.
+
 ## Documentation
 
 - [`docs/superpowers/specs/2026-11-21-agent-execution-platform-design.md`](docs/superpowers/specs/2026-11-21-agent-execution-platform-design.md) — the approved design (vision)
