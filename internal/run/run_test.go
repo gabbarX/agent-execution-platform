@@ -1,7 +1,9 @@
 package run
 
 import (
+	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 )
 
@@ -74,5 +76,18 @@ func TestTransitionRejectsIllegal(t *testing.T) {
 	}
 	if r.Status != StatusSucceeded {
 		t.Errorf("status mutated on illegal transition: %s", r.Status)
+	}
+}
+
+func TestRunJSONOmitsZeroTimestamps(t *testing.T) {
+	b, err := json.Marshal(&Run{ID: "run_x", Status: StatusQueued})
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(b)
+	for _, field := range []string{"started_at", "finished_at", "input", "error"} {
+		if strings.Contains(s, field) {
+			t.Errorf("queued run JSON contains %q, want it omitted: %s", field, s)
+		}
 	}
 }

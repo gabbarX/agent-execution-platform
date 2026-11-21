@@ -98,6 +98,21 @@ func (p *Pool) execute(ctx context.Context, id string) {
 		return
 	}
 
+	// Register the cancel hook before any transition so the window in
+	// which a cancel request can find neither a queued run nor a
+	// registered one is as small as possible (M2's leases close it
+	// completely).
+	runCtx, cancel := context.WithCancel(ctx)
+	p.mu.Lock()
+	p.cancels[id] = cancel
+	p.mu.Unlock()
+	defer func() {
+		p.mu.Lock()
+		delete(p.cancels, id)
+		p.mu.Unlock()
+		cancel()
+	}()
+
 	if _, err := p.store.Update(id, func(r *run.Run) error {
 		r.StepsTotal = spec.Steps
 		return r.Transition(run.StatusStarting)
@@ -109,17 +124,6 @@ func (p *Pool) execute(ctx context.Context, id string) {
 	}); err != nil {
 		return
 	}
-
-	runCtx, cancel := context.WithCancel(ctx)
-	p.mu.Lock()
-	p.cancels[id] = cancel
-	p.mu.Unlock()
-	defer func() {
-		p.mu.Lock()
-		delete(p.cancels, id)
-		p.mu.Unlock()
-		cancel()
-	}()
 
 	err := p.runAgent(runCtx, spec, id)
 	switch {

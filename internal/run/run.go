@@ -63,8 +63,10 @@ type Run struct {
 	StepsDone      int       `json:"steps_done"`
 	Error          string    `json:"error,omitempty"`
 	CreatedAt      time.Time `json:"created_at"`
-	StartedAt      time.Time `json:"started_at,omitempty"`
-	FinishedAt     time.Time `json:"finished_at,omitempty"`
+	// omitzero, not omitempty: omitempty never omits structs, so a
+	// zero time.Time would serialize as year 0001.
+	StartedAt  time.Time `json:"started_at,omitzero"`
+	FinishedAt time.Time `json:"finished_at,omitzero"`
 }
 
 // Transition moves the run to a new status, enforcing the state

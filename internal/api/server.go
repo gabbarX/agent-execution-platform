@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/gabbarX/agent-execution-platform/internal/registry"
 	"github.com/gabbarX/agent-execution-platform/internal/run"
@@ -92,34 +93,51 @@ func (s *server) getRun(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) cancelRun(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	cur, ok := s.store.Get(id)
-	if !ok {
+	if _, ok := s.store.Get(id); !ok {
 		writeError(w, http.StatusNotFound, "run not found")
 		return
 	}
-	if cur.Status.Terminal() {
-		writeError(w, http.StatusConflict, "run already "+string(cur.Status))
-		return
-	}
 
-	// Still queued: pull it from the queue and finalize immediately.
-	if cur.Status == run.StatusQueued && s.sched.Remove(id) {
-		updated, err := s.store.Update(id, func(r *run.Run) error {
-			return r.Transition(run.StatusCancelled)
-		})
-		if err == nil {
-			writeJSON(w, http.StatusOK, updated)
+	// A run is always in exactly one of three places: its team queue
+	// (remove + finalize here), a worker (pool.Cancel interrupts it),
+	// or terminal. During the dequeue->register handoff it is briefly
+	// in none of them, so retry briefly rather than losing the cancel.
+	deadline := time.Now().Add(500 * time.Millisecond)
+	for {
+		latest, ok := s.store.Get(id)
+		if !ok {
+			writeError(w, http.StatusNotFound, "run not found")
 			return
 		}
-		// Lost a race with a worker that dequeued it first — fall
-		// through to the executing path.
+		if latest.Status.Terminal() {
+			if latest.Status == run.StatusCancelled {
+				writeJSON(w, http.StatusOK, latest)
+				return
+			}
+			writeError(w, http.StatusConflict, "run already "+string(latest.Status))
+			return
+		}
+		if latest.Status == run.StatusQueued && s.sched.Remove(id) {
+			if updated, err := s.store.Update(id, func(r *run.Run) error {
+				return r.Transition(run.StatusCancelled)
+			}); err == nil {
+				writeJSON(w, http.StatusOK, updated)
+				return
+			}
+		}
+		if s.pool.Cancel(id) {
+			// The worker finalizes asynchronously; report current state.
+			current, _ := s.store.Get(id)
+			writeJSON(w, http.StatusAccepted, current)
+			return
+		}
+		if time.Now().After(deadline) {
+			current, _ := s.store.Get(id)
+			writeJSON(w, http.StatusAccepted, current)
+			return
+		}
+		time.Sleep(2 * time.Millisecond)
 	}
-
-	// Executing (or about to): ask the pool to interrupt it. The
-	// worker finalizes the status, so cancellation is asynchronous.
-	s.pool.Cancel(id)
-	latest, _ := s.store.Get(id)
-	writeJSON(w, http.StatusAccepted, latest)
 }
 
 func writeJSON(w http.ResponseWriter, code int, v any) {

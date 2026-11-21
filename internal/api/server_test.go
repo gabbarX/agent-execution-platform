@@ -1,11 +1,13 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gabbarX/agent-execution-platform/internal/registry"
 	"github.com/gabbarX/agent-execution-platform/internal/run"
@@ -173,5 +175,55 @@ func TestCancelUnknownRun(t *testing.T) {
 	resp, _ := f.do(t, "POST", "/runs/run_nope/cancel", "")
 	if resp.StatusCode != http.StatusNotFound {
 		t.Errorf("status = %d, want 404", resp.StatusCode)
+	}
+}
+
+// Regression for the review's lost-cancel finding: with a live pool, a
+// cancel against an executing run must actually end it CANCELLED.
+func TestCancelRunningRunEndsCancelled(t *testing.T) {
+	store := run.NewStore()
+	reg := registry.New()
+	reg.Register(registry.AgentSpec{Name: "slow", Version: 1, Steps: 1000, StepDelay: time.Millisecond})
+	s := sched.New(nil)
+	pool := worker.NewPool(1, s, store, reg, worker.FakeAgent)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	pool.Start(ctx)
+	srv := httptest.NewServer(NewServer(store, reg, s, pool))
+	defer srv.Close()
+	f := &fixture{store: store, srv: srv, schedr: s}
+
+	_, created := f.do(t, "POST", "/runs", `{"team":"a","agent":"slow","version":1}`)
+	id := created["id"].(string)
+
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		cur, _ := store.Get(id)
+		if cur.StepsDone >= 1 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("run never started")
+		}
+		time.Sleep(2 * time.Millisecond)
+	}
+
+	resp, _ := f.do(t, "POST", "/runs/"+id+"/cancel", "")
+	if resp.StatusCode != http.StatusAccepted && resp.StatusCode != http.StatusOK {
+		t.Fatalf("cancel status = %d, want 202 or 200", resp.StatusCode)
+	}
+
+	for {
+		cur, _ := store.Get(id)
+		if cur.Status.Terminal() {
+			if cur.Status != run.StatusCancelled {
+				t.Fatalf("final status = %s, want CANCELLED", cur.Status)
+			}
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("run never reached terminal state")
+		}
+		time.Sleep(2 * time.Millisecond)
 	}
 }
