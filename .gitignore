@@ -1,1 +1,11 @@
+# Build artifacts
+*.exe
+/bin/
+coverage.out
+
+# Local environment / secrets
+.env
+
+# Agent tooling scratch (SDD workspaces, local indexes)
 .superpowers/
+.codegraph/
